@@ -35,7 +35,6 @@ export interface PlayerApi {
   mode: Mode;
   loop: number;
   progress: number;
-  analyser: AnalyserNode | null;
   learned: Set<number>;
   history: number[];
   setMode: (m: Mode) => void;
@@ -54,7 +53,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
   const [learned, setLearned] = useState<Set<number>>(() => new Set());
   const [history, setHistory] = useState<number[]>([]);
   const [progress, setProgress] = useState(0);
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   // Refs mirror state so the imperative engine never reads stale values.
   const S = useRef({ current, playing, staying, mode });
@@ -63,8 +61,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
   deckRef.current = deck;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const graphTriedRef = useRef(false);
   const segIdxRef = useRef(0);
   const gapElapsedRef = useRef(0);
   const lastTsRef = useRef<number | null>(null);
@@ -80,50 +76,10 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
     if (!audioRef.current) {
       const a = new Audio();
       a.preload = 'auto';
-      // Required so the Web Audio analyser can read the cross-origin S3 audio.
-      // The bucket returns Access-Control-Allow-Origin: *, so the load succeeds.
-      a.crossOrigin = 'anonymous';
       audioRef.current = a;
     }
     return audioRef.current;
   }, []);
-
-  // Lazily build (and resume) the Web Audio graph: element → analyser →
-  // destination. Created on a play gesture so the AudioContext is allowed to
-  // run. If anything throws, analysis is disabled and the waveform falls back
-  // to its decorative animation — audio still plays through the element.
-  const ensureGraph = () => {
-    try {
-      const a = getAudio();
-      let ctx = ctxRef.current;
-      if (ctx && ctx.state === 'closed') {
-        ctx = null;
-        ctxRef.current = null;
-        graphTriedRef.current = false;
-      }
-      if (!ctx) {
-        const Ctor =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctor) return;
-        ctx = new Ctor();
-        ctxRef.current = ctx;
-      }
-      if (!graphTriedRef.current) {
-        graphTriedRef.current = true;
-        const src = ctx.createMediaElementSource(a);
-        const an = ctx.createAnalyser();
-        an.fftSize = 128;
-        an.smoothingTimeConstant = 0.75;
-        src.connect(an);
-        an.connect(ctx.destination);
-        setAnalyser(an);
-      }
-      if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
-    } catch {
-      setAnalyser(null);
-    }
-  };
 
   const clearRaf = () => {
     if (rafRef.current != null) {
@@ -194,7 +150,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
       }
       a.playbackRate = 1;
       if (S.current.playing) {
-        ensureGraph();
         a.play().catch(() => setPlaying(false));
       }
     } else {
@@ -238,11 +193,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
       a.pause();
       clearRaf();
       lastTsRef.current = null;
-      // Close the AudioContext so each session doesn't leak one (browsers cap
-      // concurrent contexts at ~6).
-      if (ctxRef.current && ctxRef.current.state !== 'closed') void ctxRef.current.close().catch(() => {});
-      ctxRef.current = null;
-      graphTriedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck, getAudio]);
@@ -254,7 +204,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
       lastTsRef.current = null;
       const seg = SEQUENCES[S.current.mode][segIdxRef.current];
       if (seg?.kind === 'audio' && a) {
-        ensureGraph();
         a.play().catch(() => setPlaying(false));
       }
       scheduleFrame();
@@ -314,7 +263,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
     mode,
     loop,
     progress,
-    analyser,
     learned,
     history,
     setMode,

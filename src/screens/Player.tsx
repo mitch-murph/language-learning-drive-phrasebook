@@ -49,7 +49,7 @@ function QueueRow({
 
 export function Player({ deck, theme, onToggleTheme, onBack }: PlayerProps) {
   const player = usePlayer(deck);
-  const { phrase: p, playing, staying, mode, loop, progress, analyser, learned, history } = player;
+  const { phrase: p, playing, staying, mode, loop, progress, learned, history } = player;
 
   const accent = staying ? 'var(--green)' : 'var(--amber)';
 
@@ -135,7 +135,7 @@ export function Player({ deck, theme, onToggleTheme, onBack }: PlayerProps) {
             <div style={{ fontFamily: p.font, fontSize: 22, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.3, letterSpacing: '.5px', marginTop: 11 }}>{p.native}</div>
             {p.nonLatin && p.ro && <div style={{ fontSize: 15, fontWeight: 600, color: accent, marginTop: 5 }}>{p.ro}</div>}
           </div>
-          <Waveform progress={progress} playing={playing} analyser={analyser} color={accent} dim="var(--line)" height={30} />
+          <Waveform progress={progress} playing={playing} color={accent} dim="var(--line)" height={30} />
         </div>
 
         {/* recently played — reserved height so it never shifts */}

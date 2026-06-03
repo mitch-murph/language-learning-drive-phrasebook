@@ -16,6 +16,9 @@ This app is **read-only** — phrases and their audio are created in the compani
 - **Vite + React + TypeScript**, plain CSS using the design's `oklch` tokens.
 - No router — three views (`home` → `drive` → `complete`) driven by state.
 - Web Crypto API generates the short-lived `x-app-token` (see `src/api/crypto.ts`).
+- The player's waveform is **real**: the audio routes through a Web Audio
+  `AnalyserNode`, so the bars reflect the live signal (with a decorative
+  fallback if analysis is unavailable).
 
 ## Local development
 
@@ -25,8 +28,15 @@ cp .env.example .env.local   # then fill in the three VITE_ values
 npm run dev
 ```
 
-Open the **`http://localhost`** URL Vite prints — `localhost` is a secure
-context, so the Web Crypto API (token generation) works without TLS.
+The dev server runs over **HTTPS** (self-signed cert via
+`@vitejs/plugin-basic-ssl`) and binds to all interfaces. This matters because
+the Web Crypto API (token generation) only works in a **secure context**:
+
+- On your machine, open the `https://localhost:5173` URL.
+- **On a phone**, open the `https://<your-LAN-IP>:5173` URL Vite prints under
+  "Network" and accept the self-signed certificate warning. A plain
+  `http://<LAN-IP>` URL is **not** a secure context and will fail with
+  "Web Crypto unavailable".
 
 > The `VITE_*` values are baked into the client bundle at build time — that is
 > inherent to this client-side HMAC design (the secret ships to the browser).
@@ -58,8 +68,8 @@ The site is served from the repo sub-path, so `vite.config.ts` sets
 ```
 src/
   api/        crypto.ts (HMAC token) · client.ts (listPhrases, getAudioUrl)
-  audio/      usePlayer.ts (normal/slow/drill playback engine)
-  components/ icons.tsx · Waveform.tsx
+  audio/      usePlayer.ts (normal/slow/drill engine + Web Audio analyser)
+  components/ icons.tsx · Waveform.tsx (live spectrum bars)
   screens/    Home.tsx · Player.tsx · SessionComplete.tsx
   phrases.ts  Phrase → DeckPhrase mapping, language grouping, fonts
   App.tsx     view orchestration, fetch, theme

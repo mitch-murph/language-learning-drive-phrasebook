@@ -13,7 +13,7 @@ const THEME_KEY = 'phrasebook-theme';
 function useTheme(): [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
-    return saved === 'theme-cozy' || saved === 'theme-dark' ? saved : 'theme-dark';
+    return saved === 'theme-cozy' || saved === 'theme-dark' ? saved : 'theme-cozy';
   });
   useEffect(() => {
     localStorage.setItem(THEME_KEY, theme);

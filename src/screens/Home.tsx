@@ -10,7 +10,42 @@ interface HomeProps {
 }
 
 export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
+  const [filterLangs, setFilterLangs] = useState<Set<string>>(new Set());
+  const [filterTags, setFilterTags] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState<Set<string>>(() => new Set());
+
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    groups.forEach((g) => g.phrases.forEach((p) => p.tags.forEach((t) => s.add(t))));
+    return [...s].sort();
+  }, [groups]);
+
+  const filteredGroups = useMemo(() => {
+    return groups
+      .filter((g) => filterLangs.size === 0 || filterLangs.has(g.languageName))
+      .map((g) => ({
+        ...g,
+        phrases:
+          filterTags.size === 0
+            ? g.phrases
+            : g.phrases.filter((p) => p.tags.some((t) => filterTags.has(t))),
+      }))
+      .filter((g) => g.phrases.length > 0);
+  }, [groups, filterLangs, filterTags]);
+
+  const toggleLangFilter = (lang: string) =>
+    setFilterLangs((prev) => {
+      const n = new Set(prev);
+      n.has(lang) ? n.delete(lang) : n.add(lang);
+      return n;
+    });
+
+  const toggleTagFilter = (tag: string) =>
+    setFilterTags((prev) => {
+      const n = new Set(prev);
+      n.has(tag) ? n.delete(tag) : n.add(tag);
+      return n;
+    });
 
   const toggle = (id: string) =>
     setSel((prev) => {
@@ -19,11 +54,11 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
       return n;
     });
 
-  const toggleLang = (g: LanguageGroup) =>
+  const toggleGroup = (phrases: DeckPhrase[]) =>
     setSel((prev) => {
       const n = new Set(prev);
-      const allOn = g.phrases.every((p) => n.has(p.id));
-      g.phrases.forEach((p) => (allOn ? n.delete(p.id) : n.add(p.id)));
+      const allOn = phrases.every((p) => n.has(p.id));
+      phrases.forEach((p) => (allOn ? n.delete(p.id) : n.add(p.id)));
       return n;
     });
 
@@ -34,8 +69,16 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
   );
 
   const buildDeck = (): DeckPhrase[] => {
+    const seen = new Set<string>();
     const out: DeckPhrase[] = [];
-    groups.forEach((g) => g.phrases.forEach((p) => sel.has(p.id) && out.push(p)));
+    groups.forEach((g) =>
+      g.phrases.forEach((p) => {
+        if (sel.has(p.id) && !seen.has(p.id)) {
+          seen.add(p.id);
+          out.push(p);
+        }
+      }),
+    );
     return out;
   };
 
@@ -52,40 +95,73 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px 6px' }}>
+      {/* language filter chips */}
+      <div className="no-scrollbar" style={{ display: 'flex', gap: 7, padding: '0 22px 6px', overflowX: 'auto' }}>
+        {groups.map((g) => (
+          <button key={g.languageName} onClick={() => toggleLangFilter(g.languageName)} style={chip(filterLangs.has(g.languageName))}>
+            <span style={{ fontFamily: g.font }}>{g.native}</span>
+            <span style={{ opacity: 0.7 }}> {g.languageName}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* tag filter chips — hidden if no phrases have tags */}
+      {allTags.length > 0 && (
+        <div className="no-scrollbar" style={{ display: 'flex', gap: 7, padding: '0 22px 6px', overflowX: 'auto' }}>
+          {allTags.map((tag) => (
+            <button key={tag} onClick={() => toggleTagFilter(tag)} style={chip(filterTags.has(tag))}>
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* status + clear */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 22px 6px' }}>
         <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--green)', whiteSpace: 'nowrap' }}>
           {count} selected · {langsUsed} {langsUsed === 1 ? 'language' : 'languages'}
         </span>
         <button onClick={() => setSel(new Set())} style={textBtn('var(--muted)')}>Clear</button>
       </div>
 
-      {/* sections */}
+      {/* phrase list */}
       <div className="no-scrollbar" style={{ flex: 1, overflow: 'auto' }}>
-        {groups.map((g) => (
-          <div key={g.languageName}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 22px 4px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, minWidth: 0 }}>
-                <span style={{ fontFamily: g.font, fontSize: 16, fontWeight: 700, color: 'var(--fg)', whiteSpace: 'nowrap' }}>{g.native}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '1.2px', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{g.languageName}</span>
-              </div>
-              <button onClick={() => toggleLang(g)} style={textBtn('var(--amber)')}>Select all</button>
-            </div>
-            {g.phrases.map((p) => {
-              const on = sel.has(p.id);
-              return (
-                <button key={p.id} onClick={() => toggle(p.id)} style={rowBtn}>
-                  <span style={{ ...checkbox, background: on ? 'var(--green)' : 'transparent', border: on ? 'none' : '2px solid var(--line)' }}>
-                    {on && <Check size={14} />}
-                  </span>
-                  <span style={{ minWidth: 0, opacity: on ? 1 : 0.62 }}>
-                    <span style={{ display: 'block', fontSize: 16, fontWeight: 600, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.en}</span>
-                    <span style={{ display: 'block', fontFamily: p.font, fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.native}</span>
-                  </span>
-                </button>
-              );
-            })}
+        {filteredGroups.length === 0 ? (
+          <div style={{ padding: '40px 22px', textAlign: 'center', fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>
+            No phrases match these filters
           </div>
-        ))}
+        ) : (
+          filteredGroups.map((g) => {
+            const allOn = g.phrases.every((p) => sel.has(p.id));
+            return (
+              <div key={g.languageName}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 22px 4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, minWidth: 0 }}>
+                    <span style={{ fontFamily: g.font, fontSize: 16, fontWeight: 700, color: 'var(--fg)', whiteSpace: 'nowrap' }}>{g.native}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '1.2px', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{g.languageName}</span>
+                  </div>
+                  <button onClick={() => toggleGroup(g.phrases)} style={textBtn('var(--amber)')}>
+                    {allOn ? 'Deselect all' : 'Select all'}
+                  </button>
+                </div>
+                {g.phrases.map((p) => {
+                  const on = sel.has(p.id);
+                  return (
+                    <button key={p.id} onClick={() => toggle(p.id)} style={rowBtn}>
+                      <span style={{ ...checkbox, background: on ? 'var(--green)' : 'transparent', border: on ? 'none' : '2px solid var(--line)' }}>
+                        {on && <Check size={14} />}
+                      </span>
+                      <span style={{ minWidth: 0, opacity: on ? 1 : 0.62 }}>
+                        <span style={{ display: 'block', fontSize: 16, fontWeight: 600, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.en}</span>
+                        <span style={{ display: 'block', fontFamily: p.font, fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.native}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })
+        )}
         <div style={{ height: 8 }} />
       </div>
 
@@ -119,7 +195,7 @@ const iconBtn: React.CSSProperties = {
 };
 
 const textBtn = (color: string): React.CSSProperties => ({
-  border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color,
+  border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color, flexShrink: 0,
 });
 
 const rowBtn: React.CSSProperties = {
@@ -130,3 +206,11 @@ const rowBtn: React.CSSProperties = {
 const checkbox: React.CSSProperties = {
   width: 25, height: 25, flex: '0 0 auto', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg)',
 };
+
+const chip = (active: boolean): React.CSSProperties => ({
+  flexShrink: 0, border: active ? 'none' : '1px solid var(--line)',
+  borderRadius: 20, padding: '5px 13px', cursor: 'pointer', fontFamily: 'inherit',
+  fontSize: 13, fontWeight: 700,
+  background: active ? 'var(--green)' : 'var(--surface)',
+  color: active ? 'var(--bg)' : 'var(--fg)',
+});

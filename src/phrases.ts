@@ -12,6 +12,7 @@ export interface DeckPhrase {
   nonLatin: boolean;
   normalUrl: string;
   slowUrl: string;
+  tags: string[];
 }
 
 export interface LanguageGroup {
@@ -72,6 +73,7 @@ export function toDeckPhrase(p: Phrase): DeckPhrase {
     nonLatin: p.nonLatin,
     normalUrl: getAudioUrl(p.normalS3Key),
     slowUrl: getAudioUrl(p.slowS3Key),
+    tags: p.tags ?? [],
   };
 }
 

@@ -17,6 +17,7 @@ export interface Phrase {
   updatedAt?: string;
   transcription?: string;
   translation?: string;
+  tags?: string[];
 }
 
 /** Resolve an S3 key to a fully-qualified audio URL. */

@@ -72,6 +72,11 @@ components:
         translation:
           type: string
           example: "Good morning"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["greetings", "daily"]
 
     SavePhraseRequest:
       type: object
@@ -108,6 +113,11 @@ components:
         translation:
           type: string
           example: "Good morning"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["greetings", "daily"]
 
     UpdatePhraseRequest:
       type: object

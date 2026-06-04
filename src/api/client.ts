@@ -35,12 +35,12 @@ async function readError(res: Response): Promise<string> {
 }
 
 /**
- * Fetch every saved phrase (newest first). This app is read-only — saving,
+ * Fetch every saved phrase (oldest first). This app is read-only — saving,
  * editing and deleting happen in the companion TTS phrasebook app.
  */
 export async function listPhrases(): Promise<Phrase[]> {
   const res = await fetch(`${LAMBDA_URL}/phrases`, { headers: await authHeaders() });
   if (!res.ok) throw new Error(await readError(res));
-  const { phrases } = await res.json();
-  return phrases as Phrase[];
+  const { phrases } = await res.json() as { phrases: Phrase[] };
+  return phrases.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }

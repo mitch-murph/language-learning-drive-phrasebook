@@ -79,7 +79,7 @@ export function toDeckPhrase(p: Phrase): DeckPhrase {
 
 /**
  * Group phrases by language for the Home picker, preserving the API's order
- * (newest first) both for the groups and the phrases within them.
+ * (oldest first) both for the groups and the phrases within them.
  */
 export function groupByLanguage(phrases: Phrase[]): LanguageGroup[] {
   const groups = new Map<string, LanguageGroup>();

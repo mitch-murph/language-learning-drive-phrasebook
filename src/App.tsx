@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listPhrases, type Phrase } from './api/client';
 import { groupByLanguage, type DeckPhrase } from './phrases';
+import type { Mode } from './audio/usePlayer';
 import { Home } from './screens/Home';
 import { Player } from './screens/Player';
 import { SessionComplete } from './screens/SessionComplete';
@@ -30,6 +31,7 @@ export function App() {
 
   const [view, setView] = useState<View>('home');
   const [deck, setDeck] = useState<DeckPhrase[]>([]);
+  const [initialMode, setInitialMode] = useState<Mode>('drill');
   const [sessionKey, setSessionKey] = useState(0);
   const [sessionStart, setSessionStart] = useState(0);
   const [summary, setSummary] = useState({ learned: 0, driveMs: 0 });
@@ -48,8 +50,9 @@ export function App() {
 
   const groups = useMemo(() => (phrases ? groupByLanguage(phrases) : []), [phrases]);
 
-  const startSession = (d: DeckPhrase[]) => {
+  const startSession = (d: DeckPhrase[], mode: Mode) => {
     setDeck(d);
+    setInitialMode(mode);
     setSessionStart(Date.now());
     setSessionKey((k) => k + 1);
     setView('drive');
@@ -77,7 +80,7 @@ export function App() {
         )}
 
         {view === 'drive' && (
-          <Player key={sessionKey} deck={deck} theme={theme} onToggleTheme={toggleTheme} onBack={leavePlayer} />
+          <Player key={sessionKey} deck={deck} initialMode={initialMode} theme={theme} onToggleTheme={toggleTheme} onBack={leavePlayer} />
         )}
 
         {view === 'complete' && (
@@ -86,7 +89,7 @@ export function App() {
             learnedCount={summary.learned}
             driveMs={summary.driveMs}
             onHome={() => setView('home')}
-            onAgain={() => startSession(deck)}
+            onAgain={() => startSession(deck, initialMode)}
           />
         )}
       </div>

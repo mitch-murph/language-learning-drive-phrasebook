@@ -5,12 +5,13 @@ import { Check, Play, Pause, Loop, Sun, Moon, ChevronDown } from '../components/
 
 interface PlayerProps {
   deck: DeckPhrase[];
+  initialMode: Mode;
   theme: string;
   onToggleTheme: () => void;
   onBack: (learnedCount: number) => void;
 }
 
-const MODES: Mode[] = ['normal', 'slow', 'drill'];
+const MODES: Mode[] = ['normal', 'slow', 'drill', 'recall'];
 
 function QueueRow({
   p,
@@ -47,9 +48,10 @@ function QueueRow({
   );
 }
 
-export function Player({ deck, theme, onToggleTheme, onBack }: PlayerProps) {
-  const player = usePlayer(deck);
-  const { phrase: p, playing, staying, mode, loop, progress, learned, history } = player;
+export function Player({ deck, initialMode, theme, onToggleTheme, onBack }: PlayerProps) {
+  const player = usePlayer(deck, initialMode);
+  const { phrase: p, playing, staying, mode, loop, progress, learned, history, segIdx } = player;
+  const revealed = mode !== 'recall' || segIdx >= 2;
 
   const accent = staying ? 'var(--green)' : 'var(--amber)';
 
@@ -132,8 +134,8 @@ export function Player({ deck, theme, onToggleTheme, onBack }: PlayerProps) {
           )}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: 31, fontWeight: 700, color: 'var(--fg)', lineHeight: 1.18, letterSpacing: '-.3px', textWrap: 'balance' } as React.CSSProperties}>{p.en}</div>
-            <div style={{ fontFamily: p.font, fontSize: 22, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.3, letterSpacing: '.5px', marginTop: 11 }}>{p.native}</div>
-            {p.nonLatin && p.ro && <div style={{ fontSize: 15, fontWeight: 600, color: accent, marginTop: 5 }}>{p.ro}</div>}
+            <div style={{ fontFamily: p.font, fontSize: 22, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.3, letterSpacing: '.5px', marginTop: 11, opacity: revealed ? 1 : 0, transition: 'opacity .4s' }}>{p.native}</div>
+            {p.nonLatin && p.ro && <div style={{ fontSize: 15, fontWeight: 600, color: accent, marginTop: 5, opacity: revealed ? 1 : 0, transition: 'opacity .4s' }}>{p.ro}</div>}
           </div>
           <Waveform progress={progress} playing={playing} color={accent} dim="var(--line)" height={30} />
         </div>

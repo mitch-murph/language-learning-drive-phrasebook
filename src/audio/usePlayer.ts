@@ -1,27 +1,49 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeckPhrase } from '../phrases';
 
-export type Mode = 'normal' | 'slow' | 'drill';
+export type Mode = 'normal' | 'slow' | 'drill' | 'recall';
 
 interface Segment {
   kind: 'audio' | 'gap';
-  src?: 'normal' | 'slow';
-  ms?: number;
+  src?: 'normal' | 'slow' | 'translation';
+  ms?: number;      // fixed gap duration
+  scale?: number;   // gap = last audio duration (s) × scale → ms
+  minMs?: number;   // floor when using scale
+  maxMs?: number;   // ceiling when using scale
 }
 
-// Per-mode cadence. Mirrors the design's timing model, but each "audio"
-// segment plays a real S3 recording (its length governs the segment) and each
-// "gap" is a fixed silent pause.
+function resolveGapMs(seg: Segment, lastAudioDuration: number): number {
+  if (seg.ms != null) return seg.ms;
+  if (seg.scale != null) {
+    const raw = lastAudioDuration * 1000 * seg.scale;
+    const floored = Math.max(seg.minMs ?? 0, raw);
+    return seg.maxMs != null ? Math.min(seg.maxMs, floored) : floored;
+  }
+  return 0;
+}
+
 const SEQUENCES: Record<Mode, Segment[]> = {
-  normal: [{ kind: 'audio', src: 'normal' }, { kind: 'gap', ms: 2800 }],
-  slow: [{ kind: 'audio', src: 'slow' }, { kind: 'gap', ms: 2800 }],
+  normal: [
+    { kind: 'audio', src: 'normal' },
+    { kind: 'gap', scale: 1.2, minMs: 1500 },
+  ],
+  slow: [
+    { kind: 'audio', src: 'slow' },
+    { kind: 'gap', scale: 1.2, minMs: 1500 },
+  ],
   drill: [
     { kind: 'audio', src: 'normal' },
-    { kind: 'gap', ms: 1500 },
+    { kind: 'gap', scale: 0.6, minMs: 700 },
     { kind: 'audio', src: 'slow' },
-    { kind: 'gap', ms: 1500 },
+    { kind: 'gap', scale: 0.6, minMs: 700 },
     { kind: 'audio', src: 'normal' },
-    { kind: 'gap', ms: 2800 },
+    { kind: 'gap', scale: 1.2, minMs: 1500 },
+  ],
+  recall: [
+    { kind: 'audio', src: 'translation' },
+    { kind: 'gap', scale: 2.5, minMs: 4000, maxMs: 12000 },
+    { kind: 'audio', src: 'normal' },
+    { kind: 'gap', scale: 1.5, minMs: 2000 },
   ],
 };
 
@@ -37,6 +59,7 @@ export interface PlayerApi {
   progress: number;
   learned: Set<number>;
   history: number[];
+  segIdx: number;
   setMode: (m: Mode) => void;
   togglePlay: () => void;
   toggleStay: () => void;
@@ -44,15 +67,16 @@ export interface PlayerApi {
   jumpTo: (idx: number) => void;
 }
 
-export function usePlayer(deck: DeckPhrase[]): PlayerApi {
+export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): PlayerApi {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [staying, setStaying] = useState(false);
-  const [mode, setModeState] = useState<Mode>('drill');
+  const [mode, setModeState] = useState<Mode>(initialMode);
   const [loop, setLoop] = useState(1);
   const [learned, setLearned] = useState<Set<number>>(() => new Set());
   const [history, setHistory] = useState<number[]>([]);
   const [progress, setProgress] = useState(0);
+  const [segIdx, setSegIdx] = useState(0);
 
   // Refs mirror state so the imperative engine never reads stale values.
   const S = useRef({ current, playing, staying, mode });
@@ -63,6 +87,7 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const segIdxRef = useRef(0);
   const gapElapsedRef = useRef(0);
+  const currentGapMsRef = useRef(0);
   const lastTsRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -109,7 +134,7 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
     } else {
       if (lastTsRef.current != null) gapElapsedRef.current += ts - lastTsRef.current;
       lastTsRef.current = ts;
-      const total = seg.ms ?? 0;
+      const total = currentGapMsRef.current;
       intra = total ? gapElapsedRef.current / total : 1;
       if (intra >= 1) {
         setProgress(Math.min(1, (i + 1) / seq.length));
@@ -124,7 +149,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
   startSegmentRef.current = (i: number) => {
     const seq = SEQUENCES[S.current.mode];
     if (i >= seq.length) {
-      // Cycle complete: loop in place when STAY is engaged, else advance.
       if (S.current.staying) {
         setLoop((n) => n + 1);
         segIdxRef.current = 0;
@@ -135,24 +159,25 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
       return;
     }
     segIdxRef.current = i;
+    setSegIdx(i);
     const seg = seq[i];
     const phrase = deckRef.current[S.current.current];
     if (!phrase) return;
 
     if (seg.kind === 'audio') {
       const a = getAudio();
-      const url = seg.src === 'slow' ? phrase.slowUrl : phrase.normalUrl;
+      const url = seg.src === 'translation' ? phrase.translationUrl
+                : seg.src === 'slow' ? phrase.slowUrl
+                : phrase.normalUrl;
+      if (!url) { startSegmentRef.current(i + 1); return; }
       if (a.src !== url) a.src = url;
-      try {
-        a.currentTime = 0;
-      } catch {
-        /* not yet seekable — a fresh src already starts at 0 */
-      }
+      try { a.currentTime = 0; } catch { /* not yet seekable */ }
       a.playbackRate = 1;
-      if (S.current.playing) {
-        a.play().catch(() => setPlaying(false));
-      }
+      if (S.current.playing) a.play().catch(() => setPlaying(false));
     } else {
+      const lastDuration = audioRef.current && isFinite(audioRef.current.duration)
+        ? audioRef.current.duration : 0;
+      currentGapMsRef.current = resolveGapMs(seg, lastDuration);
       gapElapsedRef.current = 0;
       lastTsRef.current = null;
     }
@@ -166,7 +191,6 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
     S.current.current = next;
     setCurrent(next);
     setLoop(1);
-    segIdxRef.current = 0;
     startSegmentRef.current(0);
   };
 
@@ -203,9 +227,7 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
     if (playing) {
       lastTsRef.current = null;
       const seg = SEQUENCES[S.current.mode][segIdxRef.current];
-      if (seg?.kind === 'audio' && a) {
-        a.play().catch(() => setPlaying(false));
-      }
+      if (seg?.kind === 'audio' && a) a.play().catch(() => setPlaying(false));
       scheduleFrame();
     } else {
       if (a) a.pause();
@@ -265,6 +287,7 @@ export function usePlayer(deck: DeckPhrase[]): PlayerApi {
     progress,
     learned,
     history,
+    segIdx,
     setMode,
     togglePlay,
     toggleStay,

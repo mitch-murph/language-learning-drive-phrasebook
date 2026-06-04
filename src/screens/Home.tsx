@@ -1,17 +1,30 @@
 import { useMemo, useState } from 'react';
 import type { DeckPhrase, LanguageGroup } from '../phrases';
+import type { Mode } from '../audio/usePlayer';
 import { Check, Play, Sun, Moon } from '../components/icons';
+
+const MODE_KEY = 'phrasebook-mode';
+const ALL_MODES: { mode: Mode; label: string; hint: string }[] = [
+  { mode: 'normal', label: 'Normal', hint: 'Hear it once' },
+  { mode: 'slow', label: 'Slow', hint: 'Slow playback' },
+  { mode: 'drill', label: 'Drill', hint: 'Normal → slow → normal' },
+  { mode: 'recall', label: 'Recall', hint: 'Translate then reveal' },
+];
 
 interface HomeProps {
   groups: LanguageGroup[];
   theme: string;
   onToggleTheme: () => void;
-  onStart: (deck: DeckPhrase[]) => void;
+  onStart: (deck: DeckPhrase[], mode: Mode) => void;
 }
 
 export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
   const [filterLangs, setFilterLangs] = useState<Set<string>>(new Set());
   const [filterTags, setFilterTags] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<Mode>(() => {
+    const saved = localStorage.getItem(MODE_KEY);
+    return (ALL_MODES.some((m) => m.mode === saved) ? saved : 'drill') as Mode;
+  });
   const [sel, setSel] = useState<Set<string>>(() => new Set());
 
   const allTags = useMemo(() => {
@@ -165,10 +178,28 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
         <div style={{ height: 8 }} />
       </div>
 
-      {/* start */}
-      <div style={{ padding: '12px 18px calc(env(safe-area-inset-bottom, 0px) + 24px)', borderTop: '1px solid var(--line)' }}>
+      {/* mode picker + start */}
+      <div style={{ padding: '12px 18px calc(env(safe-area-inset-bottom, 0px) + 24px)', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {ALL_MODES.map(({ mode: m, label, hint }) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); localStorage.setItem(MODE_KEY, m); }}
+              title={hint}
+              style={{
+                flex: 1, padding: '8px 0', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 12.5, fontWeight: 700, letterSpacing: '.5px', textTransform: 'capitalize',
+                background: mode === m ? 'var(--fg)' : 'var(--surface)',
+                color: mode === m ? 'var(--bg)' : 'var(--muted)',
+                border: mode === m ? 'none' : '1px solid var(--line)',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <button
-          onClick={() => count > 0 && onStart(buildDeck())}
+          onClick={() => count > 0 && onStart(buildDeck(), mode)}
           disabled={count === 0}
           style={{
             width: '100%', height: 72, borderRadius: 20, border: 'none', cursor: count ? 'pointer' : 'default', fontFamily: 'inherit',

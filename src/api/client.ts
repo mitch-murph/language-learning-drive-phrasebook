@@ -17,6 +17,7 @@ export interface Phrase {
   updatedAt?: string;
   transcription?: string;
   translation?: string;
+  translationS3Key?: string;
   tags?: string[];
 }
 

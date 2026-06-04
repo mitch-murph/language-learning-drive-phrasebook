@@ -13,15 +13,15 @@ interface Segment {
 // segment plays a real S3 recording (its length governs the segment) and each
 // "gap" is a fixed silent pause.
 const SEQUENCES: Record<Mode, Segment[]> = {
-  normal: [{ kind: 'audio', src: 'normal' }, { kind: 'gap', ms: 1400 }],
-  slow: [{ kind: 'audio', src: 'slow' }, { kind: 'gap', ms: 1400 }],
+  normal: [{ kind: 'audio', src: 'normal' }, { kind: 'gap', ms: 2800 }],
+  slow: [{ kind: 'audio', src: 'slow' }, { kind: 'gap', ms: 2800 }],
   drill: [
     { kind: 'audio', src: 'normal' },
-    { kind: 'gap', ms: 650 },
+    { kind: 'gap', ms: 1500 },
     { kind: 'audio', src: 'slow' },
-    { kind: 'gap', ms: 650 },
+    { kind: 'gap', ms: 1500 },
     { kind: 'audio', src: 'normal' },
-    { kind: 'gap', ms: 1400 },
+    { kind: 'gap', ms: 2800 },
   ],
 };
 

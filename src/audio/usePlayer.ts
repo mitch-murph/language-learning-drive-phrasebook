@@ -256,8 +256,6 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
 
   const gotIt = () => {
     setLearned((l) => new Set(l).add(S.current.current));
-    S.current.staying = false;
-    setStaying(false);
     S.current.playing = true;
     setPlaying(true);
     advanceRef.current();

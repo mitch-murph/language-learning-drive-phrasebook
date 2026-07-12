@@ -89,7 +89,7 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
   const gapElapsedRef = useRef(0);
   const currentGapMsRef = useRef(0);
   const lastTsRef = useRef<number | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   // Mutually-recursive engine functions live in refs, reassigned every render,
   // so callbacks always close over the latest state without stale captures.
@@ -106,19 +106,22 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
     return audioRef.current;
   }, []);
 
-  const clearRaf = () => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+  // A plain timer (not requestAnimationFrame) so the clock keeps running in
+  // background tabs — rAF is fully suspended when the document is hidden,
+  // which would otherwise freeze playback mid-gap until the tab regains focus.
+  const clearTimer = () => {
+    if (timerRef.current != null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
   };
 
-  const scheduleFrame = () => {
-    if (!S.current.playing || rafRef.current != null) return;
-    rafRef.current = requestAnimationFrame((ts) => {
-      rafRef.current = null;
-      frameRef.current(ts);
-    });
+  const scheduleTick = () => {
+    if (!S.current.playing || timerRef.current != null) return;
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      frameRef.current(Date.now());
+    }, 100);
   };
 
   frameRef.current = (ts: number) => {
@@ -143,7 +146,7 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
       }
     }
     setProgress(Math.min(1, (i + Math.min(1, Math.max(0, intra))) / seq.length));
-    scheduleFrame();
+    scheduleTick();
   };
 
   startSegmentRef.current = (i: number) => {
@@ -181,7 +184,7 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
       gapElapsedRef.current = 0;
       lastTsRef.current = null;
     }
-    scheduleFrame();
+    scheduleTick();
   };
 
   advanceRef.current = () => {
@@ -215,7 +218,7 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
       a.removeEventListener('ended', onEnded);
       a.removeEventListener('error', onError);
       a.pause();
-      clearRaf();
+      clearTimer();
       lastTsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,10 +231,10 @@ export function usePlayer(deck: DeckPhrase[], initialMode: Mode = 'drill'): Play
       lastTsRef.current = null;
       const seg = SEQUENCES[S.current.mode][segIdxRef.current];
       if (seg?.kind === 'audio' && a) a.play().catch(() => setPlaying(false));
-      scheduleFrame();
+      scheduleTick();
     } else {
       if (a) a.pause();
-      clearRaf();
+      clearTimer();
       lastTsRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

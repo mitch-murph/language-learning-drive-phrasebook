@@ -18,13 +18,12 @@ export interface DeckPhrase {
 
 export interface LanguageGroup {
   languageName: string;
-  native: string; // language's own name (e.g. 日本語) for the section header
   font: string;
   phrases: DeckPhrase[];
 }
 
-// Native font + endonym lookups, keyed by lowercase language name. Falls back
-// to the BCP-47 code prefix, then to the UI font / the English name.
+// Native font lookups, keyed by lowercase language name. Falls back to the
+// BCP-47 code prefix, then to the UI font.
 const FONT_BY_NAME: Record<string, string> = {
   japanese: 'var(--jp)',
   korean: 'var(--kr)',
@@ -38,28 +37,12 @@ const FONT_BY_CODE: Record<string, string> = {
   th: 'var(--th)',
   zh: 'var(--zh)',
 };
-const ENDONYM: Record<string, string> = {
-  japanese: '日本語',
-  korean: '한국어',
-  thai: 'ภาษาไทย',
-  chinese: '中文',
-  mandarin: '中文',
-  spanish: 'Español',
-  french: 'Français',
-  german: 'Deutsch',
-  italian: 'Italiano',
-  english: 'English',
-};
 
 function fontFor(languageName: string, code: string): string {
   const name = languageName.trim().toLowerCase();
   if (FONT_BY_NAME[name]) return FONT_BY_NAME[name];
   const prefix = code.slice(0, 2).toLowerCase();
   return FONT_BY_CODE[prefix] ?? 'var(--ui)';
-}
-
-function endonymFor(languageName: string): string {
-  return ENDONYM[languageName.trim().toLowerCase()] ?? languageName;
 }
 
 export function toDeckPhrase(p: Phrase): DeckPhrase {
@@ -91,7 +74,6 @@ export function groupByLanguage(phrases: Phrase[]): LanguageGroup[] {
     if (!g) {
       g = {
         languageName: p.languageName,
-        native: endonymFor(p.languageName),
         font: fontFor(p.languageName, p.languageCode),
         phrases: [],
       };

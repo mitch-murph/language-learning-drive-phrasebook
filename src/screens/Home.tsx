@@ -112,8 +112,7 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
       <div className="no-scrollbar" style={{ display: 'flex', gap: 7, padding: '0 22px 6px', overflowX: 'auto' }}>
         {groups.map((g) => (
           <button key={g.languageName} onClick={() => toggleLangFilter(g.languageName)} style={chip(filterLangs.has(g.languageName))}>
-            <span style={{ fontFamily: g.font }}>{g.native}</span>
-            <span style={{ opacity: 0.7 }}> {g.languageName}</span>
+            <span style={{ fontFamily: g.font }}>{g.languageName}</span>
           </button>
         ))}
       </div>
@@ -150,8 +149,7 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
               <div key={g.languageName}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 22px 4px' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, minWidth: 0 }}>
-                    <span style={{ fontFamily: g.font, fontSize: 16, fontWeight: 700, color: 'var(--fg)', whiteSpace: 'nowrap' }}>{g.native}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '1.2px', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{g.languageName}</span>
+                    <span style={{ fontFamily: g.font, fontSize: 16, fontWeight: 700, color: 'var(--fg)', whiteSpace: 'nowrap' }}>{g.languageName}</span>
                   </div>
                   <button onClick={() => toggleGroup(g.phrases)} style={textBtn('var(--amber)')}>
                     {allOn ? 'Deselect all' : 'Select all'}

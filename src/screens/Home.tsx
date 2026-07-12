@@ -109,7 +109,7 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
       </div>
 
       {/* language filter chips */}
-      <div className="no-scrollbar" style={{ display: 'flex', gap: 7, padding: '0 22px 6px', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, padding: '0 22px 6px' }}>
         {groups.map((g) => (
           <button key={g.languageName} onClick={() => toggleLangFilter(g.languageName)} style={chip(filterLangs.has(g.languageName))}>
             <span style={{ fontFamily: g.font }}>{g.languageName}</span>
@@ -119,7 +119,7 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
 
       {/* tag filter chips — hidden if no phrases have tags */}
       {allTags.length > 0 && (
-        <div className="no-scrollbar" style={{ display: 'flex', gap: 7, padding: '0 22px 6px', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, padding: '0 22px 6px' }}>
           {allTags.map((tag) => (
             <button key={tag} onClick={() => toggleTagFilter(tag)} style={chip(filterTags.has(tag))}>
               {tag}

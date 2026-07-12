@@ -119,7 +119,7 @@ export function Home({ groups, theme, onToggleTheme, onStart }: HomeProps) {
 
       {/* tag filter chips — hidden if no phrases have tags */}
       {allTags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, padding: '0 22px 6px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, padding: '0 22px 6px', marginTop: 6 }}>
           {allTags.map((tag) => (
             <button key={tag} onClick={() => toggleTagFilter(tag)} style={chip(filterTags.has(tag))}>
               {tag}
